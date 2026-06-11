@@ -9,6 +9,8 @@ It includes three approaches:
 
 The pipeline predicts six irAE types (`colitis`, `dermatitis`, `hepatitis`, `myocarditis`, `pneumonitis`, `thyroiditis`) and outputs grade, attribution, and certainty labels.
 
+> **Note:** `regex` is a keyword-matching **baseline for smoke testing only**. It does not understand negation (e.g. "no colitis"), severity/grade, attribution, or past-vs-current temporality — it sets a binary 0/1 and copies that into the grade/attribution/certainty fields. For real extraction use an LLM workflow: `openai_zeroshot`, `openai_agent`, or `agent_split_temporality`.
+
 ## Paper/preprint
 
 - [medRxiv preprint (v2)](https://www.medrxiv.org/content/10.64898/2026.02.26.26347179v2)

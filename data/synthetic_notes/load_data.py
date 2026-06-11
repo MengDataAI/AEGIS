@@ -57,6 +57,14 @@ def load_patient_data(data_dir: str) -> List[Dict[str, Any]]:
                 data["file_id"] = json_file.split(".")[0]
                 data["filename"] = json_file
 
+                # Default optional metadata so real-world notes (which may omit
+                # these fields) still process. Falls back to the filename for the
+                # patient id, "t1" for the timepoint, and {} for ground-truth
+                # labels (absent on real notes; only used during evaluation).
+                data.setdefault("patient_id", data["file_id"])
+                data.setdefault("timepoint", "t1")
+                data.setdefault("labels", {})
+
                 patient_data.append(data)
                 logger.debug(f"Loaded patient data from {file_path}")
             except Exception as e:

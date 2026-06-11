@@ -345,6 +345,15 @@ def run_experiment(
 
     patient_data = load_patient_data(data_dir)
 
+    # Fail fast with an actionable message when nothing usable was loaded
+    # (empty/missing directory, or every file malformed / missing a 'note').
+    if not patient_data:
+        raise ValueError(
+            f"No valid notes found in '{data_dir}'. "
+            f"Ensure it contains .json files each with a 'note' field "
+            f"(a missing/empty directory or malformed JSON yields no notes)."
+        )
+
     # Limit dataset size based on debug mode and max_samples setting
     if debug:
         # Get max_samples from environment runtime settings, default to 2 if not specified
@@ -433,8 +442,8 @@ def run_experiment(
     for data in patient_data:
         input_state = {
             "patient_note": data["note"],
-            "patient_id": data["patient_id"],
-            "timepoint": data["timepoint"],
+            "patient_id": data.get("patient_id", data.get("file_id")),
+            "timepoint": data.get("timepoint", "t1"),
             "file_id": data["file_id"],
             "filename": data["filename"],
             "context": [],
@@ -584,7 +593,9 @@ def run_experiment(
     for idx, raw_result in enumerate(all_results_raw):
         original_data = patient_data[idx]
         run_id = str(uuid.uuid4())
-        run_name = f"{graph_type}_{original_data['patient_id']}_{original_data['timepoint']}_{model_config}_variant_{prompt_variant}_{run_id}"
+        patient_id = original_data.get("patient_id", original_data.get("file_id"))
+        timepoint = original_data.get("timepoint", "t1")
+        run_name = f"{graph_type}_{patient_id}_{timepoint}_{model_config}_variant_{prompt_variant}_{run_id}"
 
         # Extract relevant parts from raw_result, handling potential errors
         prediction = raw_result.get("final_output", {})
@@ -610,7 +621,7 @@ def run_experiment(
         # Log if there was an error in the result
         if error:
             logger.warning(
-                f"Error in result for patient {original_data['patient_id']} (file: {original_data['filename']}): {error}"
+                f"Error in result for patient {patient_id} (file: {original_data['filename']}): {error}"
             )
         
         # Log extraction info
@@ -619,19 +630,19 @@ def run_experiment(
             extracted_length = len(extracted_note)
             reduction_percent = ((original_length - extracted_length) / original_length * 100) if original_length > 0 else 0
             logger.debug(
-                f"Note extraction for patient {original_data['patient_id']}: "
+                f"Note extraction for patient {patient_id}: "
                 f"Original={original_length} chars, Extracted={extracted_length} chars, "
                 f"Reduction={reduction_percent:.1f}%"
             )
 
         results.append(
             {
-                "patient_id": original_data["patient_id"],
-                "timepoint": original_data["timepoint"],
+                "patient_id": patient_id,
+                "timepoint": timepoint,
                 "note": extracted_note if extracted_note and extracted_note.strip() else original_data["note"],  # Use extracted note if available and not empty
                 "raw_note": original_data["note"],  # Always keep the original note
                 "extracted_note": extracted_note,  # Also save extracted note separately for comparison
-                "true_labels": original_data["labels"],
+                "true_labels": original_data.get("labels", {}),
                 "predicted_labels": prediction,
                 "messages": converted_messages,
                 "file_id": original_data["file_id"],
